@@ -39,8 +39,8 @@ data <- data %>% left_join(credits, by=c("Voivod"="Teryt"))
 
 # random % of credits recipients
 data <- data %>% mutate(
-  `Credit Penetration` =  rnorm(1, `perc of credit recipient`, 1),
-  `Properties per 10k residents` = round(Properties/Population*10000, 2)
+  `Properties per 10k residents` = round(Properties/Population*10000, 2),
+  `Credit Penetration` =  rnorm(1, `perc of credit recipient`, 1)
 )
 
 data <- data %>% select(-Voivod,-`perc of credit recipient`, -`Prop Unit`, -`Wage Unit`)

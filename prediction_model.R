@@ -1,5 +1,9 @@
 library(caret)
 library(vip)
+library(cluster)
+library(sf)
+library(ggplot2)
+library(dplyr)
 
 #Selecting only continous variables and voivodeship
 data_model <- data %>% ungroup %>% select(-Teryt, -Name)
@@ -21,7 +25,6 @@ rm(list=c("data_model","cross_val", "model"))
 
 #CLUSTERING
 plot(data$`Credit Penetration`)
-library(cluster)
 
 variables <- c("Population", "Properties", "Wage", "Unemployment", "Properties per 10k residents", "Credit Penetration")
 
@@ -58,14 +61,13 @@ aggregate(data_clustering[, variables], by = list(cluster = data_clustering$clus
 
 
 
-library(sf)
+
 powiaty <- st_read("Powiat/A02_Granice_powiatow.shp")
 names(powiaty)
 data_clustering$Teryt = substr(data_clustering$Teryt,1,4)
 map <- merge(powiaty, data_clustering, by.x="JPT_KOD_JE", by.y="Teryt")
 
 plot(map["credit_penetration"])
-library(ggplot2)
 
 #map$potentials <- ifelse(map$cluster %in% c(1,3,5), paste0("Potential",map$cluster), "Rest")
 map <- map %>% mutate(
@@ -80,7 +82,7 @@ map <- map %>% mutate(
 ggplot(map) + 
   geom_sf(aes(fill = factor(potentials)), color="white", size = 0.15) +
   theme_minimal()+
-  labs(fill = "Klaster")+
+  labs(fill = "Cluster")+
   scale_fill_manual(
     values = c(
       "Cities" = "#fde725",
@@ -89,3 +91,28 @@ ggplot(map) +
       "Rest" = "grey"
     )
   )
+ggsave("Clusters.jpg", width = 2700, height=1800, units="px")
+
+
+data_clustering_scaled <- data_clustering %>% ungroup() %>% 
+  group_by(cluster) %>% 
+  mutate(across(all_of(variables), ~as.numeric(scale(.)))) %>% 
+  filter(cluster %in% c(1,3,5)) %>% 
+  arrange(cluster) %>% 
+  mutate(
+    rank = Population + Wage - Unemployment - `Credit Penetration` - `Properties per 10k residents`
+  ) %>% 
+  top_n(3, wt = rank)
+
+# Teryt Name                       cluster    rank
+# 1 2466  Powiat m. Gliwice              1   4.03 
+# 2 2469  Powiat m. Katowice             1   3.73 
+# 3 3262  Powiat m. Szczecin             1   6.71
+
+# 4 0610  Powiat łęczyński               3   1.83 
+# 5 1001  Powiat bełchatowski            3   2.50 
+# 6 2467  Powiat m. Jastrzębie-Zdrój     3   3.55 
+
+# 7 1261  Powiat m. Kraków               5   2.20 
+# 8 1465  Powiat m. st. Warszawa         5   4.78 
+# 9 3064  Powiat m. Poznań               5  -0.491
